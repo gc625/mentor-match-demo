@@ -6,7 +6,7 @@ To access on another device, serve the directory on a trusted network, e.g. `pyt
 
 ## Input
 
-Choose one UTF-8 CSV per side, or click **Load example data**. The example files are also in `samples/`. Each row begins with a unique person's name, followed by their ranked choices, in order. A `Name,Preferences` header is optional. Quoted CSV fields and common unquoted separate choice columns both work:
+Choose one UTF-8 CSV per side, or click **Load example data**. The example contains 60 mentors and 60 mentees, each with five ranked preferences. The deterministic synthetic example files are also in `samples/` and can be recreated with `node samples/generate.js`. Each row begins with a unique person's name, followed by their ranked choices, in order. A `Name,Preferences` header is optional. Quoted CSV fields and common unquoted separate choice columns both work:
 
 ```csv
 Name,Preferences

@@ -8,6 +8,8 @@
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="mobile.css">
   <script defer src="match.js"></script>
+  <script defer src="analysis.js"></script>
+  <script defer src="sample.js"></script>
   <script defer src="app.js"></script>
 </head>
 <body>
@@ -33,6 +35,23 @@ Daniel,Noah,Priya,Sofia</pre><p>Standard CSV quoting works for person names with
       <div id="empty" class="empty"><div class="empty-symbol" aria-hidden="true"><span></span><span></span></div><h3>Good matches start here.</h3><p>Upload both preference lists or load the example to explore the workspace.</p></div>
       <div id="result-content" hidden>
         <div class="metrics"><div><span>PAIRED</span><strong id="paired-count">—</strong></div><div><span>UNMATCHED</span><strong id="unmatched-count">—</strong></div><div><span>TOTAL SCORE</span><strong id="score">—</strong></div></div>
+        <section class="analysis" aria-labelledby="analysis-title">
+          <div class="analysis-heading"><div><span class="step">MATCH ANALYSIS</span><h3 id="analysis-title">How choices align</h3></div><p id="analysis-total"></p></div>
+          <p class="analysis-note">Counts include matched pairs only; unmatched people are excluded. Ranks are positions in each person's own preference list.</p>
+          <div class="choice-cards">
+            <div class="choice-card"><h4>Mutual first choices</h4><strong id="mutual-first">0</strong><p>Both ranked each other #1</p></div>
+            <div class="choice-card"><h4>First / second</h4><strong id="first-second">0</strong><p id="first-second-split"></p></div>
+            <div class="choice-card"><h4>First / third</h4><strong id="first-third">0</strong><p id="first-third-split"></p></div>
+          </div>
+          <div id="analysis-visuals">
+            <div class="matrix-block"><h4>Rank-pair matrix</h4><p>Mentor rank = rows · mentee rank = columns. Only ranks present in matched pairs are shown.</p><div class="matrix-scroll" tabindex="0" role="region" aria-label="Rank-pair matrix, scroll horizontally if needed"><table class="rank-matrix" id="rank-matrix"><caption>Number of pairs by mentor rank (rows) and mentee rank (columns)</caption></table></div></div>
+            <div class="distribution-grid">
+              <div><h4>Mentor choices</h4><p>Partner's rank on the mentor's list</p><div id="mentor-distribution" class="distribution"></div></div>
+              <div><h4>Mentee choices</h4><p>Partner's rank on the mentee's list</p><div id="mentee-distribution" class="distribution"></div></div>
+            </div>
+          </div>
+          <p id="analysis-empty" class="analysis-note" hidden>No matched pairs to analyze.</p>
+        </section>
         <div class="results-toolbar"><div><h3>Suggested matches</h3><p>Sorted by mentee input order · max 2,000 points per pair</p></div><button type="button" class="button secondary" id="export">Export CSV <span aria-hidden="true">↓</span></button></div>
         <div class="table-wrap"><table><thead><tr><th>MENTOR</th><th>MENTEE</th><th>MENTOR RANK</th><th>MENTEE RANK</th><th>SCORE</th></tr></thead><tbody id="match-rows"></tbody></table></div><p id="no-matches" hidden>No mutually ranked pairs were found.</p>
         <div class="unmatched"><div><h4>Unmatched mentors <span id="unmatched-mentor-count"></span></h4><p id="unmatched-mentors"></p></div><div><h4>Unmatched mentees <span id="unmatched-mentee-count"></span></h4><p id="unmatched-mentees"></p></div></div>

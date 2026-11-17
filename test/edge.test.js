@@ -39,15 +39,21 @@ test('maximizes rank score when cardinality is tied', () => {
   assert.equal(r.totalScore, 4000);
   assert.deepEqual(r.matches.map(x=>x.mentor+'-'+x.mentee).sort(), ['A-X','B-Y']);
 });
-test('shipped sample files form six pairs with two unmatched people', () => {
+test('shipped sample files contain 60 people with five distinct ranked choices on each side', () => {
   const fs = require('node:fs');
   const path = require('node:path');
   const mentors = parsePeople(fs.readFileSync(path.join(__dirname,'../samples/mentors.csv'),'utf8'));
   const mentees = parsePeople(fs.readFileSync(path.join(__dirname,'../samples/mentees.csv'),'utf8'));
-  const result = optimize(mentors,mentees);
-  assert.equal(result.matches.length,6);
-  assert.equal(result.unmatchedMentees.length,2);
-  assert.equal(result.totalScore,12000);
+  assert.equal(mentors.length, 60);
+  assert.equal(mentees.length, 60);
+  for (const person of [...mentors, ...mentees]) {
+    assert.equal(person.preferences.length, 5, person.name);
+    assert.equal(new Set(person.preferences).size, 5, person.name);
+  }
+  const result = optimize(mentors, mentees); // also checks every preference names a real person
+  assert.ok(result.matches.length > 40);
+  assert.ok(result.matches.some(pair => pair.mentorRank > 1 && pair.menteeRank > 1));
+  assert.ok(result.matches.filter(pair => pair.mentorRank === 1 && pair.menteeRank === 1).length < 30);
 });
 test('Hungarian output agrees with exhaustive search across 250 seeded small instances', () => {
   let seed = 12345; const rnd = () => ((seed = (Math.imul(seed,1664525)+1013904223)>>>0)/2**32);
