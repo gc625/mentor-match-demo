@@ -77,21 +77,64 @@
     const result = Array(n).fill(-1); for (let j=1; j<=m; j++) if (p[j]) result[p[j]-1] = j-1;
     return result;
   }
-  function optimize(mentors, mentees) {
-    validate(mentors, mentees);
-    const bonus = 2000 * Math.min(mentors.length, mentees.length) + 1;
-    const edges = mentees.map(mentee => mentors.map(mentor => {
-      const mi = mentor.preferences.indexOf(mentee.name), ti = mentee.preferences.indexOf(mentor.name);
-      if (mi < 0 || ti < 0) return null;
-      const mentorScore = Math.round(1000 * (mentor.preferences.length - mi) / mentor.preferences.length);
-      const menteeScore = Math.round(1000 * (mentee.preferences.length - ti) / mentee.preferences.length);
-      return {mentor: mentor.name, mentee: mentee.name, mentorRank: mi+1, menteeRank: ti+1, mentorScore, menteeScore, score: mentorScore+menteeScore};
-    }));
-    const cost = edges.map(row => row.map(edge => edge ? -(bonus + edge.score) : 1).concat(Array(mentees.length).fill(0)));
-    const chosen = assignment(cost), matches = [];
-    chosen.forEach((j,i) => { if (j < mentors.length && edges[i][j]) matches.push(edges[i][j]); });
+  function pair(mentor, mentee) {
+    const mi = mentor.preferences.indexOf(mentee.name), ti = mentee.preferences.indexOf(mentor.name);
+    if (mi < 0 || ti < 0) return null;
+    const mentorScore = Math.round(1000 * (mentor.preferences.length - mi) / mentor.preferences.length);
+    const menteeScore = Math.round(1000 * (mentee.preferences.length - ti) / mentee.preferences.length);
+    return {mentor: mentor.name, mentee: mentee.name, mentorRank: mi+1, menteeRank: ti+1, mentorScore, menteeScore, score: mentorScore+menteeScore};
+  }
+  function resultFor(mentors, mentees, matches) {
     const usedM = new Set(matches.map(p => p.mentor)), usedT = new Set(matches.map(p => p.mentee));
     return {matches, unmatchedMentors: mentors.filter(p => !usedM.has(p.name)).map(p => p.name), unmatchedMentees: mentees.filter(p => !usedT.has(p.name)).map(p => p.name), totalScore: matches.reduce((sum,p) => sum+p.score, 0)};
+  }
+  function optimize(mentors, mentees, {priority = 'balanced'} = {}) {
+    if (!['balanced', 'mentors', 'mentees'].includes(priority)) throw new Error(`Unknown priority: ${priority}.`);
+    validate(mentors, mentees);
+    const mentorWeight = priority === 'mentors' ? 2 : 1;
+    const menteeWeight = priority === 'mentees' ? 2 : 1;
+    const bonus = 1000 * (mentorWeight + menteeWeight) * Math.min(mentors.length, mentees.length) + 1;
+    const edges = mentees.map(mentee => mentors.map(mentor => pair(mentor, mentee)));
+    const cost = edges.map(row => row.map(edge => edge ? -(bonus + mentorWeight * edge.mentorScore + menteeWeight * edge.menteeScore) : 1).concat(Array(mentees.length).fill(0)));
+    const chosen = assignment(cost), matches = [];
+    chosen.forEach((j,i) => { if (j < mentors.length && edges[i][j]) matches.push(edges[i][j]); });
+    return resultFor(mentors, mentees, matches);
+  }
+  function stableMatch(mentors, mentees, {proposer = 'mentor'} = {}) {
+    if (!['mentor', 'mentee'].includes(proposer)) throw new Error(`Unknown proposer: ${proposer}.`);
+    validate(mentors, mentees);
+    const proposing = proposer === 'mentor' ? mentors : mentees;
+    const receiving = proposer === 'mentor' ? mentees : mentors;
+    const receivers = new Map(receiving.map(p => [p.name, p]));
+    const proposers = new Map(proposing.map(p => [p.name, p]));
+    const next = new Map(proposing.map(p => [p.name, 0]));
+    const held = new Map(), queue = proposing.map(p => p.name);
+    for (let i = 0; i < queue.length; i++) {
+      const person = proposers.get(queue[i]);
+      let index = next.get(person.name);
+      while (index < person.preferences.length) {
+        const receiver = receivers.get(person.preferences[index++]);
+        next.set(person.name, index);
+        const rank = receiver.preferences.indexOf(person.name);
+        if (rank < 0) continue;
+        const current = held.get(receiver.name);
+        if (current === undefined || rank < receiver.preferences.indexOf(current)) {
+          held.set(receiver.name, person.name);
+          if (current !== undefined) queue.push(current);
+          break;
+        }
+      }
+    }
+    const mentorByName = new Map(mentors.map(p => [p.name, p]));
+    const menteeByName = new Map(mentees.map(p => [p.name, p]));
+    const assignments = new Map();
+    for (const [receiver, current] of held) {
+      const mentor = proposer === 'mentor' ? current : receiver;
+      const mentee = proposer === 'mentor' ? receiver : current;
+      assignments.set(mentee, mentor);
+    }
+    const matches = mentees.filter(p => assignments.has(p.name)).map(p => pair(mentorByName.get(assignments.get(p.name)), menteeByName.get(p.name)));
+    return resultFor(mentors, mentees, matches);
   }
   function blockingPairs(mentors, mentees, matches) {
     validate(mentors, mentees);
@@ -115,5 +158,5 @@
     };
     return [['Mentor','Mentee','Mentor rank','Mentee rank','Pair score'], ...matches.map(p => [p.mentor,p.mentee,p.mentorRank,p.menteeRank,p.score])].map(row => row.map(cell).join(',')).join('\r\n') + '\r\n';
   }
-  return {parseCSV, parsePeople, optimize, blockingPairs, exportCSV};
+  return {parseCSV, parsePeople, optimize, stableMatch, blockingPairs, exportCSV};
 });

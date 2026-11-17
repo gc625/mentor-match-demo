@@ -7,6 +7,7 @@
   function clearResult() {
     state.result = null;
     $('result-content').hidden = true; $('empty').hidden = false;
+    $('empty-description').textContent = 'Upload both preference lists or load the example to explore the workspace.';
     $('result-label').textContent = 'AWAITING INPUT'; $('stability-result').textContent = '';
   }
   function setPeople(kind, text, filename) {
@@ -52,16 +53,40 @@
       updateReady();
     } catch (error) { say(error.message); }
   });
+  function updateSettings(modeChanged = false) {
+    const mode = $('matching-mode').value, priority = $('matching-priority');
+    if (modeChanged) {
+      const previous = priority.value;
+      priority.replaceChildren();
+      const choices = mode === 'optimal' ? [['balanced', 'Balanced'], ['mentors', 'Mentors'], ['mentees', 'Mentees']] : [['mentors', 'Mentors propose'], ['mentees', 'Mentees propose']];
+      for (const [value, label] of choices) priority.add(new Option(label, value));
+      priority.value = choices.some(([value]) => value === previous) ? previous : 'mentors';
+    }
+    const side = priority.value;
+    $('mode-description').textContent = mode === 'stable'
+      ? `${side === 'mentors' ? 'Mentors' : 'Mentees'} propose. No blocking pairs, but some people may remain unmatched even if more eligible pairs are possible.`
+      : side === 'balanced' ? 'Maximizes pair count, then total score. Balanced gives both sides equal weight.'
+      : `Maximizes pair count, then total score. ${side === 'mentors' ? 'Mentor' : 'Mentee'} scores have twice the weight of the other side.`;
+    if (state.result) { clearResult(); $('empty-description').textContent = 'Settings changed. Generate pairings again to see updated results.'; say('Settings changed. Generate pairings again to see results for these settings.'); }
+  }
+  $('matching-mode').addEventListener('change', () => updateSettings(true));
+  $('matching-priority').addEventListener('change', () => updateSettings());
   $('run').addEventListener('click', () => {
     clearResult(); say('');
     try {
-      state.result = MentorMatch.optimize(state.mentor, state.mentee);
+      const mode = $('matching-mode').value, priority = $('matching-priority').value;
+      state.result = mode === 'stable'
+        ? MentorMatch.stableMatch(state.mentor, state.mentee, {proposer: priority === 'mentors' ? 'mentor' : 'mentee'})
+        : MentorMatch.optimize(state.mentor, state.mentee, {priority});
       render();
     } catch (error) { say(error.message); }
   });
   function render() {
     const r = state.result;
-    $('empty').hidden = true; $('result-content').hidden = false; $('result-label').textContent = 'OPTIMAL PAIRING';
+    const mode = $('matching-mode').value, priority = $('matching-priority').value;
+    $('empty').hidden = true; $('result-content').hidden = false;
+    $('result-label').textContent = mode === 'stable' ? `STABLE · ${priority.toUpperCase()} PROPOSE` : `OPTIMAL · ${priority.toUpperCase()}`;
+    $('score-description').textContent = 'Displayed scores are the unweighted sum of both sides (max 2,000 per pair). Priority weights affect the optimization objective, not these scores.';
     $('paired-count').textContent = r.matches.length;
     $('unmatched-count').textContent = r.unmatchedMentors.length + r.unmatchedMentees.length;
     $('score').textContent = r.totalScore.toLocaleString();
@@ -132,7 +157,7 @@
     summary.textContent = pairs.length ? `${pairs.length} blocking ${pairs.length === 1 ? 'pair' : 'pairs'} found` : 'No blocking pairs found · stable';
     target.appendChild(summary);
     if (pairs.length) {
-      const description = document.createElement('p'); description.textContent = 'These people both prefer each other to their current outcome. The optimized matching has not changed.'; target.appendChild(description);
+      const description = document.createElement('p'); description.textContent = 'These people both prefer each other to their current outcome. The matching has not changed.'; target.appendChild(description);
       const list = document.createElement('ul');
       for (const pair of pairs) { const li = document.createElement('li'); li.textContent = `${pair.mentor} + ${pair.mentee}`; list.appendChild(li); }
       target.appendChild(list);
